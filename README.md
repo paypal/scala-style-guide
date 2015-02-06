@@ -398,6 +398,12 @@ Option(123) match {
 
 ## Option
 
+Use `Option(...)` or
+[`.opt`](https://github.com/paypal/cascade/blob/develop/common/src/main/scala/com/paypal/cascade/common/option/option.scala#L61)
+to create `Option`s. Only use
+[`.some`](https://github.com/paypal/cascade/blob/develop/common/src/main/scala/com/paypal/cascade/common/option/option.scala#L55)
+for constant, non-null values. Avoid methods and styles that will return `Some(null)`, such as `Iterator.find(p: T => Boolean)`
+
 Flows with `Option` values should be constructed using the `match` keyword as follows.
 
 ```scala
@@ -427,20 +433,6 @@ Option(123).map(stuff).getOrElse(0)
 
 You should enforce expected type signatures, as `match` does not guarantee consistent types between match outcomes
 (e.g. the `None` case could return `Int`, while the `Some` case could return `String`).
-
-When creating `Option`s, use
-[`.opt`](https://github.com/paypal/cascade/blob/develop/common/src/main/scala/com/paypal/cascade/common/option/option.scala#L61).
-If the value is a constant, use
-[`.some`](https://github.com/paypal/cascade/blob/develop/common/src/main/scala/com/paypal/cascade/common/option/option.scala#L55)
-instead.
-
-```scala
-val doThisForConstants = "hello".some
-val notThisForConstants = "goodbye".opt
-
-val doThisForEverythingElse = foo().opt
-val notThisForEverythingElse = bar().some
-```
 
 ## For Comprehension
 
