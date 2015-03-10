@@ -63,7 +63,7 @@ package object mypackage {
 
 ## Public Methods
 
-Limit the number of public methods in your class to 30.
+Limit the number of public methods in your class to 30. Limit the number of type declarations to 50.
 
 # Throwables
 
