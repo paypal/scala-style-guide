@@ -1,16 +1,12 @@
-PayPal Scala Style Guidelines
+Vpon's Scala Style Guidelines
 =================
 
-This repository contains style guidelines for writing Scala code at PayPal. Here are our goals for style
+This repository contains style guidelines for writing Scala code at Vpon. The guidelines are based on [Paypal's style](https://github.com/paypal/scala-style-guide/). Here are our goals for style
 guides in this repository:
 
 1. Our style guidelines should be clear.
 2. We all should agree on our style guidelines.
 3. We should change this guideline as we learn and as Scala evolves.
-4. Keep the [scalastyle-config.xml](https://github.com/paypal/scala-style-guide/blob/develop/scalastyle-config.xml) in our projects in line with this guide as much as possible.
-
-This repository follows git-flow. If you have a new style guideline, open a pull request against `develop`. We'll
-discuss in the PR comments. The official guidelines live in [master](https://github.com/paypal/scala-style-guide/blob/master/README.md)
 
 # Whitespace
 
@@ -19,19 +15,23 @@ discuss in the PR comments. The official guidelines live in [master](https://git
 
 # Line Length
 
-* Use a maximum line length of 160 characters.
+* Use a maximum line length of 140 characters.
 
 # Names
 
 ## Functions, Classes and Variables
 
 Use camel case for all function, class and variable names. Classes start with an upper case letter, and values and
-functions start with a lower case. Here are some examples:
+functions start with a lower case. Constants use upper case and underscores. Here are some examples:
 
 ```scala
 class MyClass {
   val myValue = 1
   def myFunction: Int = myValue
+}
+
+object MyClass {
+  val BEAUTIFUL_CONSTANT = 12
 }
 ```
 ### Acronyms
@@ -47,12 +47,12 @@ val httpIoJsonToXmlParser = new HttpIoJsonToXmlParser()
 Package names should be all lowercase with no underscores.
 
 File names for package objects must match the most specific name in the package.
-For example, for the `com.paypal.mypackage` package object, the file
+For example, for the `com.vpon.mypackage` package object, the file
 should be named `mypackage.scala` and the file should be structured like this:
 
 
 ```scala
-package com.paypal
+package com.vpon
 
 package object mypackage {
   //...
@@ -65,14 +65,57 @@ package object mypackage {
 
 Limit the number of public methods in your class to 30.
 
+## Default Parameter Values
+
+Eliminate default values in classes and case classes, especially when adding more fields to existing classes. Default values may be used only in justified cases. Does the class appear in too many places and there would be a lot of code to fix? That is **not** justified case.
+
+Prefer
+
+```scala
+case class MyClass(count: Int, title: String)
+
+```
+
+over
+
+```scala
+case class MyClass(count: Int, title: String = "Unknown")
+```
+
+#### How to deal with this rule?
+
+In certain cases it may be convenient to add factory methods on companion objects which would create new instance using default values.
+
+```scala
+object MyClass {
+  def unknown(count: Int) = MyClass(count, "Unkown")
+}
+```
+
+Other alternative may be to reflect different possibilities in different types:
+
+```scala
+sealed trait MyClass {
+  def count: Int
+  def title: String
+}
+
+case class KnownMyClass(count: Int, title: String) extends MyClass
+case class UnknownMyClass(count: Int) extends MyClass {
+  val title = "Unknown"
+}
+```
+
+> **Why?** Default values for class fields may introduce bugs that are hard to track. By eliminating usage of default values when adding more fields to a class, developer is forced to examine its every occurence and fix according to situation.
+
 # Throwables
 
 1. Prefer non-case classes when defining exceptions and errors unless you plan on pattern matching on the exception.
 2. If providing a cause is desirable and not mandatory then define it as an option. Note, the use of ```.orNull```.
 
 ```scala
-class CrazyException(msg: String, cause: Option[Throwable] = None) extends Exception(msg, cause.orNull)
-class SuperCrazyError(msg: String, cause: Option[Throwable] = None) extends Error(msg, cause.orNull)
+class CrazyException(msg: String, cause: Option[Throwable]) extends Exception(msg, cause.orNull)
+class SuperCrazyError(msg: String, cause: Option[Throwable]) extends Error(msg, cause.orNull)
 ```
 
 # Imports
@@ -92,8 +135,7 @@ akka
 spray
 all other imports
 ___blank line___
-com.ebay
-com.paypal
+com.vpon
 ```
 
 You should also regularly run IntelliJ's Optimize Imports (Edit > Optimize Imports) against
@@ -165,12 +207,19 @@ For example,
 private implicit lazy val someSetting = ...
 ```
 
+Use `private[this]` modifier (instance-scope hiding) instead of `private` (unless required by use case).
+
+> **Why?** Scala compiler can optimize `private[this]` modifiers.
+
 # Functions
 
 Rules to follow for all functions:
 
 * Always put a space after `:` characters in function signatures.
 * Always put a space after `,` in function signatures.
+* Make sure a function does not exceed 80 lines (one screen).
+* Using `return` is strongly discouraged (a. k. a. _Use with extreme caution and only in justified cases_).
+* If function is meant to be used outside, always explicitly declare return type.
 
 ## Public Functions
 All public functions and methods, including those inside `object`s must have:
@@ -189,6 +238,39 @@ object MyObject {
   def myFunction: Int = {
     123
   }
+}
+```
+
+### Partial Functions
+
+One-line partial functions are allowed but only when the whole expression is very short, typically inside `filter` or `map` functions.
+
+```scala
+List((1, 'a'), (2, 'b'), (3, 'c')).map { case (x, _) => x * 2 }
+```
+
+### Nested Functions
+
+Do not use more than two levels of nested functions.
+
+```scala
+class OurClass {
+  
+  // Do
+  def fun1 = {
+    def fun2 = ???
+    ???
+  }
+
+  // Don't
+  def fun1 = {
+    def fun2 = {
+      def fun3 = ???
+      ???
+    }
+    ???
+  }
+
 }
 ```
 
@@ -373,6 +455,40 @@ Option(true).foreach(someMethodThatTakesAJavaBoolean(_))  // lol java
 
 In general, logic that handles a choice between two or more outcomes should prefer to use `match`.
 
+## If, Then, Else
+
+One-line if–else statements are allowed if the whole expression is very short and comprehensible.
+
+```scala
+val b: Int = if(click) then 1 else 0
+```
+
+In case of multi-line if–else statement, always use curly braces and put `} else {` on one line:
+
+Do
+
+```scala
+val b: Option[String] = if(stmt.isEmpty) {
+  None
+} else {
+  // do something
+  // with stmt
+  // on more lines
+}
+```
+
+Don't:
+
+```scala
+val b: Option[String] = if(stmt.isEmpty)
+  None
+else {
+  // do something
+  // with stmt
+  // on more lines
+}
+```
+
 ## Match Statements
 
 When you `match` on any type, follow these rules:
@@ -382,8 +498,7 @@ When you `match` on any type, follow these rules:
   the right of the closing `)`
 3. Short single line expressions should be on the same line as the `case`
 4. Long single line and multi-line expressions should be on the line below the case, indented one level from the `case`.
-5. Do not add extra newlines in between each case statement.
-6. Filters on case statements should be on the same line if doing so will not make the line excessively long.
+5. Filters on case statements should be on the same line if doing so will not make the line excessively long.
 
 Here's a complete example:
 
@@ -428,21 +543,42 @@ Option(123).map(stuff).getOrElse(0)
 You should enforce expected type signatures, as `match` does not guarantee consistent types between match outcomes
 (e.g. the `None` case could return `Int`, while the `Some` case could return `String`).
 
-When creating `Option`s, use
-[`.opt`](https://github.com/paypal/cascade/blob/develop/common/src/main/scala/com/paypal/cascade/common/option/option.scala#L61).
-If the value is a constant, use
-[`.some`](https://github.com/paypal/cascade/blob/develop/common/src/main/scala/com/paypal/cascade/common/option/option.scala#L55)
-instead.
-
-```scala
-val doThisForConstants = "hello".some
-val notThisForConstants = "goodbye".opt
-
-val doThisForEverythingElse = foo().opt
-val notThisForEverythingElse = bar().some
-```
 
 ## For Comprehension
+
+### When To Use for Comprehension?
+
+#### Futures
+
+If `map`/`flatMap` is used only once, it is not necessary to use for comprehension. However, in case of composing more 
+futures, use for comprehension.
+
+Do
+
+```scala
+val f2 = f1.map(f => calculate(f))
+
+val f3 = for {
+  a <- f1
+  b <- f2
+  c = op1(a, b)
+  d = op2(a, c)
+} yield op3(c, d)
+```
+
+Don't
+
+```scala
+val f3 = f1.flatMap { a =>
+  f2.map { b => 
+    val c = op1(a, b)
+    val d = op2(a, c)
+    op3(c, d)
+  }
+}
+```
+
+### Styling
 
 For comprehensions should generally not be wrapped in parentheses in order to recover, flatMap, etc.
 Instead, separate the for comprehension into its own variable and perform additional operations on that.
@@ -473,6 +609,51 @@ for {
 }
 ```
 
+# Other Scala Features
+
+## String Interpolation
+
+Never use string interpolation in logging.
+
+Do
+
+```scala
+log.error("An exception was thrown for value {}: {}", value, ex)
+log.error(String.format("An exception was thrown for value %.12f: %s"), value, ex)
+```
+
+Don't
+
+```scala
+log.error(s"An exception was thrown for value $value: $ex")
+log.error(f"An exception was thrown for value $value%.12f: $ex")
+```
+
+## Functors
+
+Do not nest `map` more than twice. Use named values/functions instead.
+
+## Handling Date And Time
+
+It is strongly recommended to use time library (either `java.time` or Joda Time) instead of doing calculations with milliseconds. As one implication of this rule, using `System.currentTimeMillis()` is strongly discouraged and should not be used for time operations.
+
+Do
+
+```scala
+val baseDate = LocalDateTime.now()
+val twoWeeksLater = baseDate.plusWeeks(2)
+```
+
+Don't
+
+```scala
+val now = System.currentTimeMillis()
+val twoWeeks = 14 * 24 * 60 * 60 * 1000
+val twoWeeksLater = now + twoWeeks
+```
+
+> **Why?** Date/time arithmetic is extremely complicated domain and it is impossible to make it right on one's own. Not every year has 365 days, not every day has 24×60×60 seconds, time zones change a few times a year, daylight-saving time rules change all the time etc.
+
 # Akka
 
 ## Ask and Tell
@@ -491,41 +672,62 @@ someActor1.tell(msg)
 someActor2.ask(msg)
 ```
 
-# Tests
+## Actors
 
-Write your tests using [Specs2](http://etorreborre.github.io/specs2/). Each
-specification is a single `class` that extends `Specification`. Put each
-specification into its own file. Inside each specification, follow these rules:
+**Good practice**: It is desirable within an actor implementation to use properly named pure functions that only return required result in form of value. If the result is required to be sent to other actor (e. g. sender), it should be done outside this function.
 
-- create a single `trait` inside your `Specification` class that extends
-[`CommonImmutableSpecificationContext`](https://github.com/paypal/cascade/blob/develop/common/src/test/scala/com/paypal/cascade/common/tests/util/CommonImmutableSpecificationContext.scala)
-(from [Cascade](https://github.com/paypal/cascade).) Most people name this
-trait `Context`.
-- Group tests into `class`es, `case class`es or `object`s at your discretion.
-- All of your grouped test `class`es, `case class`es and `objects`s should go
-inside your specification class and should extend your `Context` trait
-- All methods inside your test classes should be wrapped with `apply`.
-When you do so, `CommonImmutableSpecificationContext` will execute `before` and
-`after` hooks automatically.
-- Your tests execute concurrently by default. Only change them to execute
-sequentially for a good reason, and document that reason in comments.
-
-Here's an example of the above rules in code:
+This point is marked as _good practice_ because there may be cases when doing opposite is justifiable.
 
 ```scala
-class MyTest extends Specification { override def is = s2"""
-  add(1, 2) should equal 3 ${Add().equals3()}
-  """
+class MyActor extends Actor {
+  def receive = {
+     case "statistics" => sender() ! statistics   // ← we immediately know what is happening
+  }
 
-  trait Context extends CommonImmutableSpecificationContext
-
-  case class Add() extends Context {
-    def equals3 = apply {
-      add(1, 2) must beEqualTo(3)
-    }
+  def statistics = {
+    val result = ??? // do some calculation
+    result
   }
 }
 ```
+
+is preferred over
+
+```scala
+class MyActor extends Actor {
+  def receive = {
+     case "statistics" => reportStatistics()   // ← we need to check the function to see what is happening
+  }
+
+  def reportStatistics() = {
+    val result = ??? // do some calculation
+    sender() ! result
+  }
+}
+```
+
+> **Why?** `receive` method is an entry point for readers of actor code and gives thorough picture about actor's behavior. Therefore it should be easy to understand actor's behavior only by looking at the `receive` method. Following this good practice there is a clear separation of responsibilities between calculating results (pure function) and effects (sending result). It also helps testability.
+
+## Naming Conventions
+
+In Akka configuration, use lower-case names with words devided by hyphen.
+
+Do
+
+```
+number-of-something = 5
+```
+
+Don't
+
+```
+number_of_something = 5
+numberOfSomethingElse = 6
+```
+
+# Tests
+
+TBD
 
 # Scaladoc, Comments, and Annotations
 
